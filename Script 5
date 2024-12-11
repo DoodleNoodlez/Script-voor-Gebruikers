@@ -1,0 +1,41 @@
+# Basis instellingen
+$baseOuPath = "OU=Users,DC=examen137276,DC=com"  # Pas dit aan naar de OU waar je gebruikers wilt toevoegen
+$domein = "examen137276.com"
+
+# CSV-bestand pad (pas dit aan naar jouw CSV-bestand locatie)
+$csvPath = "D:\Scripts\gebruikers.csv"
+
+# Importeer CSV-bestand
+$users = Import-Csv -Path $csvPath
+
+# Loop door elke gebruiker in het CSV-bestand
+foreach ($user in $users) {
+    # Parameters voor de nieuwe gebruiker
+    $firstName = $user.Voornaam
+    $lastName = $user.Achternaam
+    $title = $user.Functie
+    $phoneNumber = $user.Telefoonnummer
+    $address = $user.Adres
+    $postalCode = $user.Postcode
+    $city = $user.Plaatsnaam
+    
+    # Controleer of de verplichte velden niet leeg zijn
+    if ([string]::IsNullOrWhiteSpace($firstName) -or [string]::IsNullOrWhiteSpace($lastName)) {
+        Write-Host "Fout: Voornaam of achternaam ontbreekt. Gebruiker wordt overgeslagen." -ForegroundColor Red
+        continue
+    }
+
+    # Maak een gebruikersnaam (bijv. voornaam.achternaam)
+    $username = "$firstName.$lastName"
+    $email = "$username@$domein"
+
+    # Controleer of de gebruiker al bestaat
+    $existingUser = Get-ADUser -Filter {SamAccountName -eq $username} -ErrorAction SilentlyContinue
+    if ($existingUser) {
+        Write-Host "Gebruiker $username bestaat al. Wordt overgeslagen." -ForegroundColor Yellow
+        continue
+    }
+
+    # Maak de gebruiker
+    try {
+       
