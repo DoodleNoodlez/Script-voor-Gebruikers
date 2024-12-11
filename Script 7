@@ -1,0 +1,72 @@
+# Basispad voor de OU
+$baseOuPath = "OU=Departments,DC=examen137276,DC=com"
+$domein = "examen137276"
+
+# CSV-bestandspad
+$csvPath = "D:\Scripts\Users.CSV"
+
+# Importeer gebruikersgegevens uit het CSV-bestand
+$users = Import-Csv -Path $csvPath
+
+# Debug: Controleer of de gebruikers correct zijn geïmporteerd
+Write-Host "Aantal gebruikers geïmporteerd: $($users.Count)"
+
+# Verwerk elke gebruiker in het CSV-bestand
+foreach ($user in $users) {
+    # Parameters voor de nieuwe gebruiker
+    $firstName = $user.Voornaam
+    $lastName = $user.Achternaam
+    $department = $user.Afdeling
+    $title = $user.Functie
+    $phoneNumber = $user.Telefoonnummer
+    $address = $user.Adres
+    $postalCode = $user.Postcode
+    $city = $user.Plaatsnaam
+
+    # Debug: Controleer de ingelezen waarden
+    Write-Host "Ingelezen gegevens: Voornaam='$firstName', Achternaam='$lastName', Afdeling='$department'"
+
+    # Controleer of de afdeling is ingevuld
+    if (-not $department) {
+        Write-Host "Fout: De afdeling voor gebruiker $firstName $lastName is leeg. Gebruiker wordt overgeslagen."
+        continue  # Sla deze gebruiker over
+    }
+
+    # Maak een gebruikersnaam (bijv. voornaam.achternaam)
+    $username = "$firstName.$lastName"
+    $email = "$username@$domein.com"
+
+    # Bepaal de OU voor de gebruiker op basis van de afdeling
+    $ouPath = "OU=$department,$baseOuPath"
+
+    # Controleer of de OU voor de afdeling bestaat
+    $ouExists = Get-ADOrganizationalUnit -Filter "DistinguishedName -eq '$ouPath'" -SearchBase $baseOuPath
+    if (-not $ouExists) {
+        Write-Host "Fout: De OU voor afdeling '$department' bestaat niet. Gebruiker $username zal niet worden aangemaakt."
+        continue  # Sla deze gebruiker over
+    }
+
+    # Creëer de nieuwe gebruiker
+    try {
+        New-ADUser -Name "$firstName $lastName" `
+                   -GivenName $firstName `
+                   -Surname $lastName `
+                   -UserPrincipalName "$username@$domein.local" `
+                   -SamAccountName $username `
+                   -EmailAddress $email `
+                   -Department $department `
+                   -Title $title `
+                   -OfficePhone $phoneNumber `
+                   -StreetAddress $address `
+                   -PostalCode $postalCode `
+                   -City $city `
+                   -Path $ouPath `
+                   -AccountPassword (ConvertTo-SecureString "Wachtwoord1" -AsPlainText -Force) `
+                   -ChangePasswordAtLogon $true `
+                   -Enabled $true
+
+        Write-Host "Gebruiker $username succesvol aangemaakt."
+    } catch {
+        Write-Host "Fout bij het aanmaken van gebruiker $username. Fout: $($_.Exception.Message)"
+    }
+}
