@@ -1,0 +1,47 @@
+# Importeer de Active Directory-module
+Import-Module ActiveDirectory
+
+# Basis OU-paden
+$departmentBaseOU = "OU=Departments,DC=examen137276,DC=com"
+$coursesBaseOU = "OU=Cursussen,OU=Departments,DC=examen137276,DC=com"
+
+# Mappen in de "Departments"-OU (1e niveau)
+$departmentFolders = @("Administratie", "Cursussen", "Inverkoop_En_Verkoop", "IT", "Management", "Marketing")
+
+# Submappen in de "Cursussen"-OU (2e niveau)
+$coursesFolders = @("Psychologie", "Taal", "Coaching")
+
+# Functie om een nieuwe beveiligingsgroep te maken
+function Create-SecurityGroup {
+    param (
+        [string]$GroupName,
+        [string]$OUPath
+    )
+
+    try {
+        New-ADGroup -Name $GroupName `
+                    -GroupScope Global `
+                    -GroupCategory Security `
+                    -Path $OUPath `
+                    -Description "Automatisch aangemaakte beveiligingsgroep"
+        Write-Host "Beveiligingsgroep '$GroupName' succesvol aangemaakt in OU: $OUPath" -ForegroundColor Green
+    } catch {
+        Write-Host "Fout bij het maken van de groep '$GroupName' in OU: $OUPath. Fout: $($_.Exception.Message)" -ForegroundColor Red
+    }
+}
+
+# Voeg een tweede beveiligingsgroep toe aan de mappen in "Departments"
+foreach ($folder in $departmentFolders) {
+    $ouPath = "OU=$folder,$departmentBaseOU"
+    $groupName = "$folder-SecurityGroup2"
+    Create-SecurityGroup -GroupName $groupName -OUPath $ouPath
+}
+
+# Voeg een tweede beveiligingsgroep toe aan de submappen in "Cursussen"
+foreach ($folder in $coursesFolders) {
+    $ouPath = "OU=$folder,$coursesBaseOU"
+    $groupName = "$folder-SecurityGroup2"
+    Create-SecurityGroup -GroupName $groupName -OUPath $ouPath
+}
+
+Write-Host "Script voltooid!" -ForegroundColor Cyan
